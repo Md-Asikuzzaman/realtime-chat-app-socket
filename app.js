@@ -24,16 +24,42 @@ const userSockets = new Map();
 
 // Socket events
 io.on("connection", (socket) => {
-  console.log(socket.id);
-
-  // register user who connected
-  socket.on("registerUser", (userId) => {
+  // Register user who connected
+  socket.on("registerUser", ({ userId, friendId }) => {
+    // Store the socket ID with userId as the key
     userSockets.set(userId, socket.id);
 
-    console.log(`User ${userId} registered with socket ID ${socket.id}`);
+    console.log({
+      userId,
+      friendId,
+      socketId: socket.id,
+    });
   });
 
-  // send message to a specific user
+  socket.on("findFriendSocket", ({ userId, friendId }) => {
+    // Check if the user is registered
+    if (userSockets.has(userId)) {
+      // Get the user's socket ID
+      const userSocketId = userSockets.get(userId);
+
+      // Assume you have a method to get the friend's socket ID
+      // For simplicity, let's say you store both user and friend's IDs
+      const friendSocketId = [...userSockets.entries()].find(
+        ([key, value]) => key === friendId
+      )?.[1];
+
+      if (friendSocketId) {
+        // Friend is online, emit an event with friend's socket ID
+        io.to(userSocketId).emit("friendOnline", { friendId, friendSocketId });
+      } else {
+        // Friend is not online
+        io.to(userSocketId).emit("friendOffline", { friendId });
+      }
+    } else {
+      // User is not registered
+      console.log(`User with ID ${userId} is not registered.`);
+    }
+  });
 
   // Handle sending a message to a specific user
   socket.on("newMessage", (message) => {
@@ -45,9 +71,6 @@ io.on("connection", (socket) => {
         receiverId: message.receiverId,
         senderId: message.senderId,
       });
-      console.log(`Private message sent to ${message.senderId}`);
-    } else {
-      console.log(`User ${message.senderId} not found`);
     }
   });
 
@@ -60,15 +83,8 @@ io.on("connection", (socket) => {
         receiverId: message.receiverId,
         senderId: message.senderId,
       });
-      console.log(`Private message sent to ${message.senderId}`);
-    } else {
-      console.log(`User ${message.senderId} not found`);
     }
   });
-
-  //   socket.on("newMessage", (message) => {
-  //     socket.emit("newServerMessage", message);
-  //   });
 
   // Handle disconnection
   socket.on("disconnect", () => {

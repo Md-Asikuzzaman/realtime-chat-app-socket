@@ -10,6 +10,7 @@ const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: "https://mychatbd.vercel.app",
+    // origin: "http://localhost:3000",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -19,85 +20,72 @@ app.get("/", (req, res) => {
   res.status(200).json({ message: "Socket server runing..." });
 });
 
-// Store user IDs and their associated socket IDs
-const userSockets = new Map();
+// ================================================================
 
-// Socket events
+// Object to map user IDs to socket IDs
+const userSocketMap = new Map();
+
 io.on("connection", (socket) => {
-  // Register user who connected
-  socket.on("registerUser", ({ userId, friendId }) => {
-    // Store the socket ID with userId as the key
-    userSockets.set(userId, socket.id);
-
-    console.log({
-      userId,
-      friendId,
-      socketId: socket.id,
-    });
+  // Handle user ID registration
+  socket.on("registerUser", (userId) => {
+    console.log("registerUser:", userId);
+    userSocketMap.set(userId, socket.id);
+    const userList = Array.from(userSocketMap.entries()).map(
+      ([userId, socketId]) => ({ userId, socketId })
+    );
+    io.emit("updateUsers", userList);
   });
 
-  socket.on("findFriendSocket", ({ userId, friendId }) => {
-    // Check if the user is registered
-    if (userSockets.has(userId)) {
-      // Get the user's socket ID
-      const userSocketId = userSockets.get(userId);
+  // Handle new message and send to the specific receiver
+  socket.on("newMessage", (data) => {
+    const { receiverId } = data;
+    const receiverSocketId = userSocketMap.get(receiverId);
 
-      // Assume you have a method to get the friend's socket ID
-      // For simplicity, let's say you store both user and friend's IDs
-      const friendSocketId = [...userSockets.entries()].find(
-        ([key, value]) => key === friendId
-      )?.[1];
+    console.log({ receiverSocketId, data });
 
-      if (friendSocketId) {
-        // Friend is online, emit an event with friend's socket ID
-        io.to(userSocketId).emit("friendOnline", { friendId, friendSocketId });
-      } else {
-        // Friend is not online
-        io.to(userSocketId).emit("friendOffline", { friendId });
-      }
+    if (receiverSocketId) {
+      // Send message to the specific user's socket
+      io.to(receiverSocketId).emit("newMessageFromServer", data);
     } else {
-      // User is not registered
-      console.log(`User with ID ${userId} is not registered.`);
+      console.log(`User with ID ${receiverId} is not connected.`);
     }
   });
 
-  // Handle sending a message to a specific user
-  socket.on("newMessage", (message) => {
-    const targetSocketId = userSockets.get(message.receiverId);
+  // Handle finding friend's socket by friendId
+  socket.on("findFriendSocket", (friendId) => {
+    // Find the friend's socket ID
+    const friendSocketId = userSocketMap.get(friendId);
 
-    if (targetSocketId) {
-      io.to(targetSocketId).emit("newServerMessage", {
-        message,
-        receiverId: message.receiverId,
-        senderId: message.senderId,
-      });
+    if (friendSocketId) {
+      // Friend is online, emit an event with friend's socket ID
+      socket.emit("friendOnline", { friendId, friendSocketId });
+    } else {
+      // Friend is not online
+      socket.emit("friendOffline", { friendId });
     }
   });
 
-  socket.on("newMessage", (message) => {
-    const targetSocketId = userSockets.get(message.receiverId);
-
-    if (targetSocketId) {
-      socket.emit("newServerMessage", {
-        message,
-        receiverId: message.receiverId,
-        senderId: message.senderId,
-      });
-    }
-  });
-
-  // Handle disconnection
+  // Handle user disconnection
   socket.on("disconnect", () => {
-    // Find and remove user from the map
-    for (let [userId, socketId] of userSockets.entries()) {
+    console.log("user disconnected:", socket.id);
+    for (let [userId, socketId] of userSocketMap.entries()) {
       if (socketId === socket.id) {
-        userSockets.delete(userId);
-        console.log(`User ${userId} disconnected`);
+        userSocketMap.delete(userId);
         break;
       }
     }
+    const userList = Array.from(userSocketMap.entries()).map(
+      ([userId, socketId]) => ({ userId, socketId })
+    );
+    io.emit("updateUsers", userList);
+  });
+
+  socket.on("message", (data) => {
+    console.log(data, { socket: socket.id });
   });
 });
+
+// ================================================================
 
 // Server Listener
 server.listen(PORT, () => {

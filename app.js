@@ -44,8 +44,8 @@ io.on("connection", (socket) => {
     console.log({ receiverSocketId, data });
 
     if (receiverSocketId) {
-      // Send message to the specific user's socket
       io.to(receiverSocketId).emit("newMessageFromServer", data);
+      socket.emit("newMessageFromServer", data);
     } else {
       console.log(`User with ID ${receiverId} is not connected.`);
     }
@@ -53,15 +53,12 @@ io.on("connection", (socket) => {
 
   // Handle finding friend's socket by friendId
   socket.on("findFriendSocket", (friendId) => {
-    // Find the friend's socket ID
     const friendSocketId = userSocketMap.get(friendId);
 
     if (friendSocketId) {
-      // Friend is online, emit an event with friend's socket ID
-      socket.emit("friendOnline", { friendId, friendSocketId });
+      socket.emit("friendOnline", { friendSocketId });
     } else {
-      // Friend is not online
-      socket.emit("friendOffline", { friendId });
+      socket.emit("friendOffline", { friendSocketId });
     }
   });
 

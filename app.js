@@ -56,9 +56,9 @@ io.on("connection", (socket) => {
     const friendSocketId = userSocketMap.get(friendId);
 
     if (friendSocketId) {
-      socket.emit("friendOnline", { friendSocketId });
+      socket.emit("friendOnline", friendSocketId);
     } else {
-      socket.emit("friendOffline", { friendSocketId });
+      socket.emit("friendOffline", null);
     }
   });
 

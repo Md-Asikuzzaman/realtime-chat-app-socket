@@ -28,7 +28,7 @@ const userSocketMap = new Map();
 io.on("connection", (socket) => {
   // Handle user ID registration
   socket.on("registerUser", (userId) => {
-    console.log("registerUser:", userId);
+    // console.log("registerUser:", userId);
     userSocketMap.set(userId, socket.id);
     const userList = Array.from(userSocketMap.entries()).map(
       ([userId, socketId]) => ({ userId, socketId })
@@ -41,8 +41,6 @@ io.on("connection", (socket) => {
     const { receiverId } = data;
     const receiverSocketId = userSocketMap.get(receiverId);
 
-    console.log({ receiverSocketId, data });
-
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessageFromServer", data);
       socket.emit("newMessageFromServer", data);
@@ -51,14 +49,17 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Handle finding friend's socket by friendId
-  socket.on("findFriendSocket", (friendId) => {
-    const friendSocketId = userSocketMap.get(friendId);
+  // Handle Friend Typing
 
-    if (friendSocketId) {
-      socket.emit("friendOnline", friendSocketId);
-    } else {
-      socket.emit("friendOffline", null);
+  // Handle new message and send to the specific receiver
+  socket.on("isTyping", (data) => {
+    const { friendId } = data;
+    const receiverId = friendId;
+
+    const receiverSocketId = userSocketMap.get(receiverId);
+
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("typing", data);
     }
   });
 
@@ -75,10 +76,7 @@ io.on("connection", (socket) => {
       ([userId, socketId]) => ({ userId, socketId })
     );
     io.emit("updateUsers", userList);
-  });
-
-  socket.on("message", (data) => {
-    console.log(data, { socket: socket.id });
+    io.emit("typing", { friendId: null, typing: false });
   });
 });
 

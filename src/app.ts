@@ -13,7 +13,7 @@ const server = createServer(app);
 const io = new Server(server, {
   cors: {
     // origin: "*",
-    origin: "https://jhalmuri.vercel.app",
+    origin: "https://alochoona.vercel.app",
     methods: ["GET", "POST"],
     credentials: true,
   },

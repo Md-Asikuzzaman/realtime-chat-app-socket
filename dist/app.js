@@ -14,7 +14,7 @@ const server = (0, http_1.createServer)(app);
 const io = new socket_io_1.Server(server, {
     cors: {
         // origin: "*",
-        origin: "https://jhalmuri.vercel.app",
+        origin: "https://alochoona.vercel.app",
         methods: ["GET", "POST"],
         credentials: true,
     },
